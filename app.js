@@ -1,12 +1,15 @@
+require('dotenv').config();
+require('./db');
+
 const express = require('express');
 const chalk = require('chalk');
 const grapqlHttp = require('express-graphql');
 const { buildSchema } = require('graphql');
 
+const Event = require('./models/Event.model');
+
 const PORT = process.env.PORT || 3000;
 const app = express();
-
-const events = [];
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
@@ -47,19 +50,36 @@ app.use(
     `),
     rootValue: {
       events: () => {
-        return events;
+        return Event.find()
+          .then((events) => {
+            console.log(events);
+            return events.map((event) => {
+              return { ...event._doc };
+            });
+          })
+          .catch((err) => {
+            console.log(err);
+            throw err;
+          });
       },
       createEvent: (args) => {
         const { eventInput } = args;
-        const event = {
-          _id: Math.random().toString(),
+        const event = new Event({
           title: eventInput.title,
           description: eventInput.description,
           price: +eventInput.price,
-          date: eventInput.date
-        };
-        events.push(event);
-        return event;
+          date: new Date(eventInput.date)
+        });
+        return event
+          .save()
+          .then((result) => {
+            console.log(result);
+            return { ...result._doc };
+          })
+          .catch((err) => {
+            console.log(err);
+            throw err;
+          });
       }
     },
     graphiql: true
